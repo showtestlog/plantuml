@@ -1,0 +1,113 @@
+
+@startuml  Flutter_Render
+!include  https://gist.githubusercontent.com/showtestlog/ef21b2bb88a18530ea70dbdbc9cb7ad0/raw/0fd3b5fe665c79a4f364005f41e47078fda87673/.puml
+
+
+
+
+box framework
+
+participant _RawReceivePortImpl
+participant _Timer
+participant WidgetsBinding 
+participant RenderObjectToWidgetAdapter
+participant RenderObjectToWidgetElement
+note left of RenderObjectToWidgetElement  #aqua
+继承Element,持有Elemnet类型作为_child
+endnote
+participant BuildOwner
+note left of BuildOwner  #aqua
+管理widget调用
+end note
+note left of WidgetsBinding #aqua
+glue between 
+the widgets layer and 
+the Flutter engine.   
+单例
+end note 
+
+endbox
+box USER
+participant Element
+participant Widget
+participant statelessWidget   
+participant statefulWidget
+endbox
+
+
+==Render==
+note left: native call
+->_RawReceivePortImpl:handleMessage
+_RawReceivePortImpl -> _Timer:handleMessage
+activate _Timer
+group 定时器调用
+_Timer->_Timer:runTimers
+_Timer->_Timer:callback
+end 
+
+_Timer->WidgetsBinding:scheduleAttachRootWidget
+WidgetsBinding --> RenderObjectToWidgetAdapter:RenderObjectToWidgetAdapter()
+RenderObjectToWidgetAdapter->RenderObjectToWidgetAdapter:attachToRenderTree
+RenderObjectToWidgetAdapter->BuildOwner:lockState
+BuildOwner->RenderObjectToWidgetAdapter:createElement
+RenderObjectToWidgetAdapter->RenderObjectToWidgetElement:assginOwner
+RenderObjectToWidgetAdapter->BuildOwner.buildScope
+note left:构建所有被[scheduleBuildFor]标记为脏的元素。
+endnote
+BuildOwner->RenderObjectToWidgetElement.mount
+activate RenderObjectToWidgetElement
+RenderObjectToWidgetElement->RenderObjectToWidgetElement:rebuild
+RenderObjectToWidgetElement->Element:updateChild
+deactivate
+
+
+deactivate//_Timer
+
+@enduml
+
+@startuml
+
+!include  https://gist.githubusercontent.com/showtestlog/ef21b2bb88a18530ea70dbdbc9cb7ad0/raw/0fd3b5fe665c79a4f364005f41e47078fda87673/.puml
+
+box glue component 
+participant BindingBase
+participant ServicesBinding
+participant SchedulerBinding
+participant GestureBinding
+participant RendererBinding
+rnote left of RendererBinding
+调用产生RenderView是rendertree
+的根renderObject,配合PipelineOwner渲染
+endnote
+participant SemanticsBinding 
+
+participant PipelineOwner
+
+@enduml
+
+@startuml UpdateChild
+
+start 
+
+!include https://raw.githubusercontent.com/future-architect/puml-themes/master/themes/puml-theme-toy.puml
+
+:"更新(参数：child, widget, slot)";
+
+if (child存在) then (true)
+    if (child.widget == newWidget) then (true)
+        if (child.slot != newSlot) then (true)
+            :updateSlotForChild(child, newSlot);
+        endif 
+    else if (Widget.canUpdatechild(widget, newWidget)) then(true)
+            if (child.slot != newSlot) then (true)
+                :"updateSlotForChild(child, newSlot)";
+            endif
+        :child.update(newWidget);
+    endif
+    :newChild = child;
+else (false)
+    :deactivateChild;
+    :newChild = inflateWidget(newWidget, newSlot);
+endif
+stop
+@enduml
