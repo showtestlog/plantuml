@@ -2,9 +2,6 @@
 @startuml  Flutter_Render
 !include  https://gist.githubusercontent.com/showtestlog/ef21b2bb88a18530ea70dbdbc9cb7ad0/raw/0fd3b5fe665c79a4f364005f41e47078fda87673/.puml
 
-
-
-
 box framework
 
 participant _RawReceivePortImpl
@@ -15,6 +12,7 @@ participant RenderObjectToWidgetElement
 note left of RenderObjectToWidgetElement  #aqua
 继承Element,持有Elemnet类型作为_child
 endnote
+participant RootRenderObjectElement
 participant BuildOwner
 note left of BuildOwner  #aqua
 管理widget调用
@@ -26,12 +24,16 @@ the Flutter engine.
 单例
 end note 
 
+participant ComponentElement
 endbox
 box USER
 participant Element
 participant Widget
-participant statelessWidget   
-participant statefulWidget
+participant StatelessElement
+participant StatefulElement
+participant StatelessWidget
+participant SingleChildRenderObjectElement
+
 endbox
 
 
@@ -47,21 +49,52 @@ end
 
 _Timer->WidgetsBinding:scheduleAttachRootWidget
 WidgetsBinding --> RenderObjectToWidgetAdapter:RenderObjectToWidgetAdapter()
+activate RenderObjectToWidgetAdapter
 RenderObjectToWidgetAdapter->RenderObjectToWidgetAdapter:attachToRenderTree
 RenderObjectToWidgetAdapter->BuildOwner:lockState
-BuildOwner->RenderObjectToWidgetAdapter:createElement
+BuildOwner-->RenderObjectToWidgetAdapter:createElement
 RenderObjectToWidgetAdapter->RenderObjectToWidgetElement:assginOwner
-RenderObjectToWidgetAdapter->BuildOwner.buildScope
+RenderObjectToWidgetAdapter->BuildOwner:buildScope
 note left:构建所有被[scheduleBuildFor]标记为脏的元素。
-endnote
-BuildOwner->RenderObjectToWidgetElement.mount
+BuildOwner->RenderObjectToWidgetElement:mount
 activate RenderObjectToWidgetElement
-RenderObjectToWidgetElement->RenderObjectToWidgetElement:rebuild
+RenderObjectToWidgetElement->RootRenderObjectElement:mount
+RootRenderObjectElement -> Element:mount
+RenderObjectToWidgetElement->RenderObjectToWidgetElement:_rebuild
 RenderObjectToWidgetElement->Element:updateChild
+Element->Element:inflateWidget
+Element->ComponentElement:mount
+ComponentElement->ComponentElement:_firstBuild
+ComponentElement->Element:rebuild
+Element->ComponentElement:performRebuild
+activate ComponentElement
+ComponentElement->StatelessElement:build
+StatelessElement->StatelessWidget:build
+ComponentElement->Element:updateChild
+Element->Element:inflateWidget
+
+
+Element->ComponentElement:mount
+ComponentElement->StatefulElement:_firstBuild
+StatefulElement->ComponentElement:_firstBuild
+ComponentElement-> Element:rebuild
+Element->StatefulElement:performRebuild
+StatefulElement->ComponentElement:performRebuild
+ComponentElement->Element:updateChild
+activate Element
+Element->Element:inflateWidget
+Element-> SingleChildRenderObjectElement:mount
 deactivate
+SingleChildRenderObjectElement--> Element:updateChild
+rnote right
+child为null,递归树返回
+endnote
+deactivate ComponentElement
 
 
-deactivate//_Timer
+
+deactivate
+deactivate
 
 @enduml
 
@@ -76,8 +109,7 @@ participant SchedulerBinding
 participant GestureBinding
 participant RendererBinding
 rnote left of RendererBinding
-调用产生RenderView是rendertree
-的根renderObject,配合PipelineOwner渲染
+RenderView:根renderObject,配合PipelineOwner渲染
 endnote
 participant SemanticsBinding 
 
@@ -85,8 +117,8 @@ participant PipelineOwner
 
 @enduml
 
-@startuml UpdateChild
 
+@startuml UpdateChild
 start 
 
 !include https://raw.githubusercontent.com/future-architect/puml-themes/master/themes/puml-theme-toy.puml
@@ -111,3 +143,6 @@ else (false)
 endif
 stop
 @enduml
+
+
+
